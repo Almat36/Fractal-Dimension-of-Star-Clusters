@@ -6,7 +6,7 @@ import networkx as nx
 import network as nk
 import membINF as membINF
 import membRENYI
-import WFDim
+
 
 #Box Covering algorithm №1
 def memb(network, rb, boxing=False):
@@ -194,7 +194,7 @@ def CIE(network, g, rb):
                         n+=1
     return len(boxes)
 
-
+#Cutting data within Jcobi Radius
 def cutJR(filename, JR, JRn, plotC=False):
     Data = np.genfromtxt(filename+".den", usecols=(1,2,3))
     
@@ -254,43 +254,6 @@ def MST(filename, JR, JRn, plotC=False,  plotG=False):
         nx.draw(T)
     return T
 
-
-def tipoMST( filename, JR, JRn,neighbors,plotC=False,  plotG=False):   
-    print(f"Generating tipoMST of {filename}")
-    Data = cutJR(filename, JR, JRn)       
-    n = []
-    n=np.array(n)
-    for i in range(len(Data)):    
-        t = KDTree(Data)
-        k=t.query(Data[i] , k=neighbors)
-        n = np.concatenate((n, k[0][1:]), axis=None)
-    
-    # plt.figure()
-    # plt.hist(n,bins = int(np.sqrt(len(n))))
-    # j=np.histogram(n, bins=int(np.sqrt(len(n))))
-    # l=np.argmin(j[0])
-    
-    # Определяем пороговое расстояние для связи звезд
-    # threshold_dist = j[1][l]
-    threshold_dist = max(n)
-    graph = nx.Graph()
-    
-    # Добавляем звезды в граф как узлы
-    for i in range(len(Data)):
-        graph.add_node(i, pos=(Data[i, 0], Data[i, 1]))
-    
-    # Определяем связи между звездами на основе расстояний
-    x = Data[:,0]
-    y = Data[:,1]
-    z = Data[:,2]
-    for i in range(len(Data)):
-        for j in range(i+1, len(Data)):
-            dist = np.sqrt((x[i]-x[j])**2+ (y[i]-y[j])**2 + (z[i]-z[j])**2)
-        
-            if dist < threshold_dist:
-                graph.add_edge(i, j , weight=dist)
-    return graph
-   
 
 def fractal_dimension(filename, JR, JRn, plotD=False, plotC=False,  plotG=False ):    
     G = MST(filename, JR, JRn, plotC,  plotG)
@@ -447,44 +410,3 @@ def WFD(filename, JR, JRn, plotW=False, plotC=False,  plotG=False):
     return D     
 
 
-def WFD_tipoMST(filename, JR, JRn, neighbors, plotW=False, plotC=False,  plotG=False):
-    G = tipoMST(filename, JR, JRn, plotC,  plotG)
-    print(f"Calculating RD of {filename}")
-    D = WFDim.WFD(G, plotW )      
-    
-    return D      
-
-
-def fractal_dimension_tipoMST(filename, JR, JRn, neighbors, plotD=False, plotC=False,  plotG=False, plotF= False ):    
-    G = tipoMST(filename, JR, JRn, neighbors, plotC,  plotG)
-    print(f"Calculating D of {filename}")
-    N=[len(G)]
-    G = nk.network(G)
-        
-    r=[0.0000001]
-    i=1 
-    
-    while N[-1]>3:
-        print(N[-1])
-        N.append(memb.memb(G,i, boxing=True))
-        r.append(i) 
-        i+=1
-    
-    N=N[1:]
-    r=r[1:]
-    
-    lb=2*np.array(r)+1
-    rb=np.log(lb)
-    Nb=np.log(N)
-    p=np.polyfit(rb, Nb, 1)
-    a=np.polyval(p, rb)
-    if plotF==True:    
-        plt.figure()
-        plt.plot(rb, Nb, "o")
-        plt.plot(rb,a, "r--")
-        plt.xlabel("log(r)")
-        plt.ylabel("log(N)")
-        plt.title(f"{filename} { JRn} Jacobi Radius")
-
-
-    return p[0]
