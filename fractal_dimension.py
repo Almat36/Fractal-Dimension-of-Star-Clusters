@@ -127,6 +127,7 @@ def memb(network, rb, boxing=False):
             return boxes
 
 
+#Box Covering algorithm №2
 def CIE(network, g, rb):
         
     unburned = set(network.graph.nodes())
@@ -209,7 +210,7 @@ def cutJR(filename, JR, JRn, plotC=False):
         plt.plot(XYZ[:,0],XYZ[:,1], "ro")
     return XYZ
     
-  
+ 
 def generate_random_3Dgraph(data, n_nodes, radius, seed=None):
 
     if seed is not None:
@@ -229,7 +230,7 @@ def generate_random_3Dgraph(data, n_nodes, radius, seed=None):
 
     return G
 
-
+#Minimum Spanning Tree algorithm
 def MST(filename, JR, JRn, plotC=False,  plotG=False):
     XYZ=cutJR(filename, JR, JRn, plotC)
     print(f"Generating MST of {filename}")
@@ -290,7 +291,7 @@ def tipoMST( filename, JR, JRn,neighbors,plotC=False,  plotG=False):
                 graph.add_edge(i, j , weight=dist)
     return graph
    
- 
+
 def fractal_dimension(filename, JR, JRn, plotD=False, plotC=False,  plotG=False ):    
     G = MST(filename, JR, JRn, plotC,  plotG)
     print(f"Calculating D of {filename}")
@@ -437,6 +438,7 @@ def fractal_dimension_CIE(filename, JR, JRn, plotD=False, plotC=False,  plotG=Fa
     return p[0]
 
 
+#Fractal Dimension for weighted networks
 def WFD(filename, JR, JRn, plotW=False, plotC=False,  plotG=False):
     G = MST(filename, JR, JRn, plotC,  plotG)
     print(f"Calculating RD of {filename}")
