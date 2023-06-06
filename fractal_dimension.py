@@ -8,6 +8,7 @@ import membINF as membINF
 import membRENYI
 import WFDim
 
+#Box Covering algorithm №1
 def memb(network, rb, boxing=False):
         # "How to calculate the fractal dimension of a complex network: the box covering algorithm"
         # by Chaoming Song et al
