@@ -4,11 +4,14 @@ import matplotlib.pyplot as plt
 import random
 import networkx as nx
 import network as nk
-import membINF as membINF
-import membRENYI
+# import membINF as membINF
+# import membRENYI
+# import WFDim
+from scipy.spatial import distance
+from scipy.sparse import csr_matrix
+from scipy.spatial import Delaunay
+from scipy.sparse.csgraph import minimum_spanning_tree
 
-
-#Box Covering algorithm №1
 def memb(network, rb, boxing=False):
         # "How to calculate the fractal dimension of a complex network: the box covering algorithm"
         # by Chaoming Song et al
@@ -127,7 +130,6 @@ def memb(network, rb, boxing=False):
             return boxes
 
 
-#Box Covering algorithm №2
 def CIE(network, g, rb):
         
     unburned = set(network.graph.nodes())
@@ -194,7 +196,7 @@ def CIE(network, g, rb):
                         n+=1
     return len(boxes)
 
-#Cutting data within Jcobi Radius
+
 def cutJR(filename, JR, JRn, plotC=False):
     Data = np.genfromtxt(filename+".den", usecols=(1,2,3))
     
@@ -205,12 +207,12 @@ def cutJR(filename, JR, JRn, plotC=False):
 
     # np.savetxt(f"{filename}_{JRn}xJR.txt",XYZ)
     if plotC==True:
-        plt.figure()
+        plt.figure(figsize=(4,4))
         plt.plot(Data[:,0],Data[:,1],"o")
         plt.plot(XYZ[:,0],XYZ[:,1], "ro")
     return XYZ
     
- 
+  
 def generate_random_3Dgraph(data, n_nodes, radius, seed=None):
 
     if seed is not None:
@@ -230,8 +232,8 @@ def generate_random_3Dgraph(data, n_nodes, radius, seed=None):
 
     return G
 
-#Minimum Spanning Tree algorithm
-def MST(filename, JR, JRn, plotC=False,  plotG=False):
+
+def MST(filename, JR, JRn, plotC=False,  plotT=False):
     XYZ=cutJR(filename, JR, JRn, plotC)
     print(f"Generating MST of {filename}")
     x=XYZ[:,0]
@@ -249,14 +251,105 @@ def MST(filename, JR, JRn, plotC=False,  plotG=False):
     T = nx.minimum_spanning_tree(G) 
     
     # nx.write_gml(T, f"{filename}_{JRn}xJR.gml",stringizer=str)    
-    if plotG==True:
-        plt.figure()
-        nx.draw(T)
+    if plotT==True:
+        pos = {i: (XYZ[:,0][i], XYZ[:,1][i]) for i in range(n)}
+        nx.draw(T, pos, node_size=10, alpha=0.6, with_labels=False)
     return T
 
 
+def MST_scipy(filename, JR, JRn, plotC=False,  plotG=False):
+    XYZ=cutJR(filename, JR, JRn, plotC)
+    print(f"Generating MST of {filename}")
+    dist_matrix = distance.cdist(XYZ,XYZ)
+
+    # Вычисление минимального остовного дерева
+    mst = minimum_spanning_tree(csr_matrix(dist_matrix))
+
+    # Создание графа
+    point_network = nx.Graph()
+    for i, j in zip(*mst.nonzero()):
+        point_network.add_edge(i, j) 
+    
+    # nx.write_gml(T, f"{filename}_{JRn}xJR.gml",stringizer=str)    
+    if plotG==True:
+        pos = {i: (XYZ[:,0][i], XYZ[:,1][i]) for i in range(len(XYZ))}
+        nx.draw(point_network, pos, node_size=50, alpha=0.6, with_labels=False)
+    return point_network
+
+
+def tipoMST( filename, JR, JRn,neighbors,plotC=False,  plotG=False):   
+    print(f"Generating tipoMST of {filename}")
+    Data = cutJR(filename, JR, JRn)       
+    n = []
+    n=np.array(n)
+    for i in range(len(Data)):    
+        t = KDTree(Data)
+        k=t.query(Data[i] , k=neighbors)
+        n = np.concatenate((n, k[0][1:]), axis=None)
+    
+    # plt.figure()
+    # plt.hist(n,bins = int(np.sqrt(len(n))))
+    # j=np.histogram(n, bins=int(np.sqrt(len(n))))
+    # l=np.argmin(j[0])
+    
+    # Определяем пороговое расстояние для связи звезд
+    # threshold_dist = j[1][l]
+    threshold_dist = max(n)
+    graph = nx.Graph()
+    
+    # Добавляем звезды в граф как узлы
+    for i in range(len(Data)):
+        graph.add_node(i, pos=(Data[i, 0], Data[i, 1]))
+    
+    # Определяем связи между звездами на основе расстояний
+    x = Data[:,0]
+    y = Data[:,1]
+    z = Data[:,2]
+    for i in range(len(Data)):
+        for j in range(i+1, len(Data)):
+            dist = np.sqrt((x[i]-x[j])**2+ (y[i]-y[j])**2 + (z[i]-z[j])**2)
+        
+            if dist < threshold_dist:
+                graph.add_edge(i, j , weight=dist)
+    return graph
+   
+    
+def k_nearest(data, k, plotK=False):
+    star_network = nx.Graph()
+
+    # Вычисление расстояний между парами звезд
+    distances = np.sqrt((data[:,0][:, np.newaxis] - data[:,0][np.newaxis, :]) ** 2 + (data[:,1][:, np.newaxis] - data[:,1][np.newaxis, :]) ** 2 + (data[:,2][:, np.newaxis] - data[:,2][np.newaxis, :]) ** 2)
+
+    # Сортировка расстояний и выбор k ближайших соседей для каждой звезды
+    k_nearest_indices = np.argsort(distances, axis=1)[:, 1:k+1]
+
+    # Создание ребер графа
+    for i in range(len(data)):
+        for j in k_nearest_indices[i]:
+            dist = np.sqrt((data[:,0][i]-data[:,0][j])**2+ (data[:,1][i]-data[:,1][j])**2 + (data[:,2][i]-data[:,2][j])**2)
+            star_network.add_edge(i, j , weight=dist)
+    if plotK == True:
+        pos = {i: (data[:,0][i], data[:,1][i]) for i in range(len(data))}
+        nx.draw(star_network, pos, node_size=50, alpha=0.6, with_labels=False)
+    return star_network
+
+
+def delaunay_graph(data, plotDel=False):
+    # Вычисление триангуляции Делоне
+    tri = Delaunay(data)
+
+    # Создание графа
+    point_network = nx.Graph()
+    for simplex in tri.simplices:
+        point_network.add_edges_from([(simplex[0], simplex[1]), (simplex[1], simplex[2]), (simplex[2], simplex[0])])
+    if plotDel==True:
+        pos = {i: (data[:,0][i], data[:,1][i]) for i in range(len(data))}
+        nx.draw(point_network, pos, node_size=50, alpha=0.6, with_labels=False)
+    return point_network    
+
+
 def fractal_dimension(filename, JR, JRn, plotD=False, plotC=False,  plotG=False ):    
-    G = MST(filename, JR, JRn, plotC,  plotG)
+    G = MST_scipy(filename, JR, JRn, plotC,  plotG)
     print(f"Calculating D of {filename}")
     N=[len(G)]
     G = nk.network(G)
@@ -266,9 +359,9 @@ def fractal_dimension(filename, JR, JRn, plotD=False, plotC=False,  plotG=False 
     
     while N[-1]>3:
         print(N[-1])
-        N.append(memb.memb(G,i, boxing=True))
+        N.append(memb(G,i, boxing=True))
         r.append(i) 
-        i+=5
+        i+=1
     
     N=N[1:]
     r=r[1:]
@@ -282,10 +375,10 @@ def fractal_dimension(filename, JR, JRn, plotD=False, plotC=False,  plotG=False 
         plt.figure()
         plt.plot(rb, Nb, "o")
         plt.plot(rb,a, "r--")
-        plt.xlabel("log(r)")
-        plt.ylabel("log(N)")
-        plt.title(f"{filename} { JRn} Jacobi Radius")
-
+        plt.xlabel("$log(l_{b})$")
+        plt.ylabel("$log(N_{b})$")
+        # plt.title(f"{filename} { JRn} Jacobi Radius")
+        # plt.savefig('FD example.png', dpi=300)
 
     return p[0]
 
@@ -401,7 +494,6 @@ def fractal_dimension_CIE(filename, JR, JRn, plotD=False, plotC=False,  plotG=Fa
     return p[0]
 
 
-#Fractal Dimension for weighted networks
 def WFD(filename, JR, JRn, plotW=False, plotC=False,  plotG=False):
     G = MST(filename, JR, JRn, plotC,  plotG)
     print(f"Calculating RD of {filename}")
@@ -410,3 +502,44 @@ def WFD(filename, JR, JRn, plotW=False, plotC=False,  plotG=False):
     return D     
 
 
+def WFD_tipoMST(filename, JR, JRn, neighbors, plotW=False, plotC=False,  plotG=False):
+    G = tipoMST(filename, JR, JRn, plotC,  plotG)
+    print(f"Calculating RD of {filename}")
+    D = WFDim.WFD(G, plotW )      
+    
+    return D      
+
+
+def fractal_dimension_tipoMST(filename, JR, JRn, neighbors, plotD=False, plotC=False,  plotG=False, plotF= False ):    
+    G = tipoMST(filename, JR, JRn, neighbors, plotC,  plotG)
+    print(f"Calculating D of {filename}")
+    N=[len(G)]
+    G = nk.network(G)
+        
+    r=[0.0000001]
+    i=1 
+    
+    while N[-1]>3:
+        print(N[-1])
+        N.append(memb.memb(G,i, boxing=True))
+        r.append(i) 
+        i+=1
+    
+    N=N[1:]
+    r=r[1:]
+    
+    lb=2*np.array(r)+1
+    rb=np.log(lb)
+    Nb=np.log(N)
+    p=np.polyfit(rb, Nb, 1)
+    a=np.polyval(p, rb)
+    if plotF==True:    
+        plt.figure()
+        plt.plot(rb, Nb, "o")
+        plt.plot(rb,a, "r--")
+        plt.xlabel("log(r)")
+        plt.ylabel("log(N)")
+        plt.title(f"{filename} { JRn} Jacobi Radius")
+
+
+    return p[0]
