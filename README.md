@@ -2,7 +2,7 @@
 Calculating fractal dimension of star cluster
 
 
-if you have distribution of stars in star cluster as a given their position.
+if you have positional distribution of star cluster:
 
 Step 1: CutJR
 
